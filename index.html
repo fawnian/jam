@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Jam & Cuaca — PWA Anti Burn-in</title>
-  <!-- Default font; akan diubah saat user memilih font Google -->
+  <title>Jam & Cuaca — PWA Anti Burn‑in</title>
+  <!-- Default font; will be replaced dynamically when user picks Google Font -->
   <link id="gf-link" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap">
   <style>
     :root{
+      /* Theme colors (can be changed in Pengaturan) */
       --bg-dark:#000000; --fg-dark:#cbd5e1;
       --bg-light:#fafafa; --fg-light:#0f172a;
 
@@ -16,7 +17,7 @@
       --c-rose:#c78b8d;  /* d1 */
       --c-slate:#475a6a; /* d2 d3 */
       --c-colon:#6b5b4d;
-      --info:#9aa5b1;    /* secondary text */
+      --info:#9aa5b1; /* secondary text */
 
       --radius:22px;
     }
@@ -25,32 +26,30 @@
     [data-theme="light"]{ --bg:var(--bg-light); --fg:var(--fg-light); }
 
     html,body{height:100%;}
-    body{ margin:0; background:var(--bg); color:var(--fg);
-          font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif;
-          overflow:hidden; }
+    body{ margin:0; background:var(--bg); color:var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif; overflow:hidden; }
 
     .stage{position:relative; width:100%; height:100%;}
     .floating{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); will-change:transform;}
 
-    /* Jam besar memenuhi layar */
+    /* Make the clock huge so it truly fills the screen (both orientations) */
     .clock{display:flex; align-items:center; gap:min(2vw,18px);}
     .block{position:relative; line-height:0.9;}
     .digit{ font-weight:900; font-size: min(28vw, 34vh); letter-spacing:-0.04em; opacity:0.95; animation: breathe 8s ease-in-out infinite; }
     .d0{color:var(--c-peach)} .d1{color:var(--c-rose)} .d2,.d3{color:var(--c-slate)}
 
-    .colon-wrap{position:relative; width:min(8vw,9vh);}
+    .colon-wrap{position:relative; width:min(8vw,9vh);} /* responsive width */
     .dot{position:absolute; left:50%; transform:translateX(-50%); width:min(4.8vw,5.6vh); height:min(4.8vw,5.6vh); border-radius:50%; background:var(--c-colon); opacity:0.72; mix-blend-mode:multiply;}
     .dot.top{top:12%;} .dot.bot{bottom:10%;}
 
     .info{ margin-top:min(2vh,20px); text-align:center; font-size:min(6vw, 4.6vh); opacity:0.95; }
     .sub{ font-size:min(4vw, 2.8vh); opacity:0.75; }
 
-    /* Kontrol */
+    /* Controls */
     .controlbar{ position:fixed; left:10px; right:10px; bottom:10px; display:flex; gap:10px; justify-content:flex-end; z-index:10; pointer-events:auto; }
     .btn{ background:rgba(255,255,255,0.06); color:var(--fg); border:1px solid rgba(255,255,255,0.18); padding:10px 14px; border-radius:999px; font-size:14px; backdrop-filter: blur(4px); opacity:0.8; }
     .btn:active{opacity:1}
 
-    /* Panel pengaturan */
+    /* Settings panel */
     .modal{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:30; }
     .sheet{ background:var(--bg); color:var(--fg); width:min(720px, 96vw); max-height:90vh; overflow:auto; border-radius:var(--radius); border:1px solid rgba(255,255,255,0.14); padding:18px; }
     .sheet h2{ margin:0 0 12px 0; font-size:18px; }
@@ -167,16 +166,8 @@
       locmode: 'gps',
       lat: null, lon: null
     };
-    // Gunakan kunci baru cw3_settings, migrasi dari cw2_settings bila ada
-    var STORAGE_KEY = 'cw3_settings';
-    try{
-      var sNew = localStorage.getItem(STORAGE_KEY);
-      var sOld = localStorage.getItem('cw2_settings');
-      var s = sNew || sOld;
-      if(s) state = Object.assign(state, JSON.parse(s));
-      if(!sNew && sOld){ localStorage.setItem(STORAGE_KEY, sOld); }
-    }catch(e){}
-    function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+    try{ var s = localStorage.getItem('cw2_settings'); if(s) state = Object.assign(state, JSON.parse(s)); }catch(e){}
+    function save(){ try{ localStorage.setItem('cw2_settings', JSON.stringify(state)); }catch(e){} }
 
     // ---------- THEME & FONT ----------
     function applyTheme(){ document.body.setAttribute('data-theme', state.theme || 'dark'); }
@@ -246,85 +237,45 @@
     $('#btnSave').addEventListener('click', function(){
       // theme
       var th = document.querySelector('input[name="theme"]:checked').value; state.theme=th; applyTheme();
-      // font
+      // font (custom overrides picker if provided)
       var fcustom=normalizeFontName($('#fontCustom').value); var fname = fcustom || $('#fontPick').value; state.font=fname; loadGoogleFont(fname);
       // colors
       state.colors.peach=$('#cPeach').value; state.colors.rose=$('#cRose').value; state.colors.slate=$('#cSlate').value; state.colors.colon=$('#cColon').value; state.colors.info=$('#cInfo').value; applyColors();
       // location & units
       state.locmode = document.querySelector('input[name="locmode"]:checked').value; var latVal=$('#lat').value; var lonVal=$('#lon').value; state.lat = latVal===''? null : parseFloat(latVal); state.lon = lonVal===''? null : parseFloat(lonVal); state.units=$('#units').value;
-      save(); loadWeather();
-      // Regenerasi manifest & ikon agar ikon PWA konsisten
-      attachManifest();
-      closeModal();
+      save(); loadWeather(); closeModal();
     });
 
     // ---------- PWA (Installable) ----------
-    // Ikon PWA: selalu skema terang (bg terang, digit gelap, titik-dua cyan), plus border membulat
-    function makeIcon(size){
-      var c=document.createElement('canvas'); c.width=c.height=size; var g=c.getContext('2d');
-      var BG='#f8fafc', DIGIT='#0f172a', ACCENT='#38bdf8';
-      g.fillStyle=BG; g.fillRect(0,0,size,size);
-      // border rounded
-      var pad=size*0.06, r=size*0.10;
-      g.lineWidth=Math.max(2, size/64); g.strokeStyle=ACCENT;
-      g.beginPath();
-      var x=pad,y=pad,w=size-pad*2,h=size-pad*2; var rr=r;
-      g.moveTo(x+rr,y);g.arcTo(x+w,y,x+w,y+h,rr);g.arcTo(x+w,y+h,x,y+h,rr);
-      g.arcTo(x,y+h,x,y,rr);g.arcTo(x,y,x+w,y,rr);g.closePath(); g.stroke();
-      // digits '09'
-      g.fillStyle=DIGIT; g.textAlign='center'; g.textBaseline='middle';
-      g.font=Math.floor(size*0.58)+'px 900 Inter, system-ui, sans-serif';
-      g.fillText('09', size*0.46, size*0.52);
-      // colon dots
-      var dotR=size*0.06, cx=size*0.64; g.fillStyle=ACCENT;
-      g.beginPath(); g.arc(cx, size*0.38, dotR, 0, Math.PI*2); g.fill();
-      g.beginPath(); g.arc(cx, size*0.62, dotR, 0, Math.PI*2); g.fill();
-      return c.toDataURL('image/png');
-    }
+    // Create icons on the fly (PNG data URLs) so this works as a single file
+    function makeIcon(size){ var c=document.createElement('canvas'); c.width=c.height=size; var g=c.getContext('2d'); g.fillStyle=(state.theme==='light')?'#111':'#000'; g.fillRect(0,0,size,size); g.fillStyle=(state.theme==='light')?'#0f172a':'#e5e7eb'; g.font=Math.floor(size*0.58)+'px 900 Inter'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('09', size*0.48, size*0.50); return c.toDataURL('image/png'); }
 
     function attachManifest(){
-      // Sediakan ikon 'any' dan 'maskable' agar A2HS Android menampilkan bentuk optimal
-      var sizes=[192,256,384,512];
-      var icons=[];
-      sizes.forEach(function(s){
-        var url=makeIcon(s);
-        icons.push({src:url,sizes:s+'x'+s,type:'image/png',purpose:'any'});
-        icons.push({src:url,sizes:s+'x'+s,type:'image/png',purpose:'maskable'});
-      });
       var manifest = {
         name: 'Jam & Cuaca', short_name: 'JamCuaca',
-        start_url: '.', display: 'standalone',
-        background_color: '#f8fafc',
-        theme_color: '#f8fafc',
-        icons: icons
+        start_url: '.', display: 'standalone', background_color: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#000000', theme_color: (state.theme==='light')?'#fafafa':'#000000',
+        icons: [192,256,384,512].map(function(s){ return {src: makeIcon(s), sizes: s+'x'+s, type:'image/png'}; })
       };
       var blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
       var url = URL.createObjectURL(blob);
-      var old = document.querySelector('link[rel="manifest"]'); if(old) old.remove();
       var link = document.createElement('link'); link.rel='manifest'; link.href=url; document.head.appendChild(link);
     }
     attachManifest();
 
-    // Service worker minimal untuk cache halaman ini
+    // Minimal service worker for offline cache of this page
     function registerSW(){
       if(!('serviceWorker' in navigator)) return;
-      var code = "self.addEventListener('install',e=>{e.waitUntil(caches.open('cw3-v1').then(c=>c.addAll(['./'])))});"
-               + "self.addEventListener('fetch',e=>{ e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request))); });";
+      var code = `self.addEventListener('install',e=>{e.waitUntil(caches.open('cw2-v1').then(c=>c.addAll(['./'])))});
+self.addEventListener('fetch',e=>{ e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request))); });`;
       var blob=new Blob([code],{type:'text/javascript'}); var url=URL.createObjectURL(blob);
       navigator.serviceWorker.register(url).catch(function(){});
     }
     registerSW();
 
-    // Install prompt
+    // Install prompt handling
     var deferredPrompt=null; var installBtn=$('#btnInstall'); installBtn.style.display='none';
     window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; installBtn.style.display=''; });
-    installBtn.addEventListener('click', function(){
-      if(!deferredPrompt) return;
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.finally(function(){ deferredPrompt=null; installBtn.style.display='none'; });
-      // Pastikan manifest terbaru terpasang
-      attachManifest();
-    });
+    installBtn.addEventListener('click', function(){ if(!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.finally(function(){ deferredPrompt=null; installBtn.style.display='none'; }); });
 
   })();
   </script>
