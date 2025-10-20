@@ -3,62 +3,68 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Jam & Cuaca — PWA Anti Burn‑in</title>
-  <!-- Default font; will be replaced dynamically when user picks Google Font -->
+  <title>Jam & Cuaca — PWA Anti Burn-in</title>
   <link id="gf-link" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap">
   <style>
     :root{
-      /* Theme colors (can be changed in Pengaturan) */
       --bg-dark:#000000; --fg-dark:#cbd5e1;
       --bg-light:#fafafa; --fg-light:#0f172a;
-
-      /* Digit colors */
-      --c-peach:#eab8a7; /* d0 */
-      --c-rose:#c78b8d;  /* d1 */
-      --c-slate:#475a6a; /* d2 d3 */
-      --c-colon:#6b5b4d;
-      --info:#9aa5b1; /* secondary text */
-
+      --c-peach:#eab8a7; --c-rose:#c78b8d; --c-slate:#475a6a; --c-colon:#6b5b4d; --info:#9aa5b1;
       --radius:22px;
+      /* Ukuran px (auto = responsif) */
+      --clock-size:auto; --day-size:auto; --date-size:auto; --weather-size:auto;
     }
-
     [data-theme="dark"]{ --bg:var(--bg-dark); --fg:var(--fg-dark); }
     [data-theme="light"]{ --bg:var(--bg-light); --fg:var(--fg-light); }
 
     html,body{height:100%;}
-    body{ margin:0; background:var(--bg); color:var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif; overflow:hidden; }
+    body{ margin:0; background:var(--bg); color:var(--fg);
+          font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif;
+          overflow:hidden; }
 
     .stage{position:relative; width:100%; height:100%;}
     .floating{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); will-change:transform;}
 
-    /* Make the clock huge so it truly fills the screen (both orientations) */
-    .clock{display:flex; align-items:center; gap:min(2vw,18px);}
+    /* Jam */
+    .clock{display:flex; align-items:center; gap:min(2vw,18px);}  
     .block{position:relative; line-height:0.9;}
-    .digit{ font-weight:900; font-size: min(28vw, 34vh); letter-spacing:-0.04em; opacity:0.95; animation: breathe 8s ease-in-out infinite; }
+    .digit{ font-weight:900; font-size: var(--clock-size); letter-spacing:-0.04em; opacity:0.95; animation: breathe 8s ease-in-out infinite; }
     .d0{color:var(--c-peach)} .d1{color:var(--c-rose)} .d2,.d3{color:var(--c-slate)}
 
-    .colon-wrap{position:relative; width:min(8vw,9vh);} /* responsive width */
-    .dot{position:absolute; left:50%; transform:translateX(-50%); width:min(4.8vw,5.6vh); height:min(4.8vw,5.6vh); border-radius:50%; background:var(--c-colon); opacity:0.72; mix-blend-mode:multiply;}
+    .colon-wrap{position:relative; width:min(8vw,9vh);}  
+    .dot{position:absolute; left:50%; transform:translateX(-50%); width:min(4.8vw,5.6vh); height:min(4.8vw,5.6vh); border-radius:50%;
+         background:var(--c-colon); opacity:0.72; mix-blend-mode:multiply;}
     .dot.top{top:12%;} .dot.bot{bottom:10%;}
 
-    .info{ margin-top:min(2vh,20px); text-align:center; font-size:min(6vw, 4.6vh); opacity:0.95; }
-    .sub{ font-size:min(4vw, 2.8vh); opacity:0.75; }
+    /* Baris meta di bawah jam: Hari, Tanggal, Suhu, Cuaca */
+    .meta{ margin-top:min(2vh,20px); display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; }
+    .day{ font-size: var(--day-size); }
+    .date{ font-size: var(--date-size); }
+    .wx  { font-size: var(--weather-size); display:inline-flex; gap:6px; align-items:center; }
+    .sep { opacity:0.55; }
 
-    /* Controls */
-    .controlbar{ position:fixed; left:10px; right:10px; bottom:10px; display:flex; gap:10px; justify-content:flex-end; z-index:10; pointer-events:auto; }
-    .btn{ background:rgba(255,255,255,0.06); color:var(--fg); border:1px solid rgba(255,255,255,0.18); padding:10px 14px; border-radius:999px; font-size:14px; backdrop-filter: blur(4px); opacity:0.8; }
-    .btn:active{opacity:1}
+    /* Tombol mengambang depan */
+    .fabbar{ position:fixed; right:10px; bottom:10px; display:flex; gap:8px; z-index:10; }
+    .fab{ width:42px; height:42px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+          background:rgba(255,255,255,0.04); color:var(--fg); border:1px solid rgba(255,255,255,0.14);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.25); cursor:pointer; }
+    /* Ikon pengaturan & fullscreen lebih halus tanpa teks */
+    #btnSettings, #btnFS{ opacity:0.45; }
+    #btnSettings:hover, #btnFS:hover{ opacity:0.75; }
 
-    /* Settings panel */
+    /* Modal Pengaturan */
     .modal{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:30; }
-    .sheet{ background:var(--bg); color:var(--fg); width:min(720px, 96vw); max-height:90vh; overflow:auto; border-radius:var(--radius); border:1px solid rgba(255,255,255,0.14); padding:18px; }
+    .sheet{ background:var(--bg); color:var(--fg); width:min(780px, 96vw); max-height:90vh; overflow:auto;
+            border-radius:var(--radius); border:1px solid rgba(255,255,255,0.14); padding:18px; }
     .sheet h2{ margin:0 0 12px 0; font-size:18px; }
     .grid{ display:grid; grid-template-columns: 1fr; gap:12px; }
     .field{ display:flex; flex-direction:column; gap:6px; }
     .field label{ font-size:13px; opacity:0.75; }
     .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field input[type="text"], .field select, .field input[type="number"]{ padding:10px; background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.2); border-radius:10px; }
+    .field input[type="text"], .field select, .field input[type="number"]{
+      padding:10px; background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.2); border-radius:10px; }
     .field input[type="color"]{ width:48px; height:36px; border-radius:8px; border:1px solid #555; background:none; }
+    .btn{ background:rgba(255,255,255,0.06); color:var(--fg); border:1px solid rgba(255,255,255,0.18); padding:10px 14px; border-radius:999px; font-size:14px; cursor:pointer; }
     .actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
 
     @keyframes breathe{ 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.06)} }
@@ -72,20 +78,39 @@
         <div class="colon-wrap" aria-hidden="true"><span class="dot top"></span><span class="dot bot"></span></div>
         <div class="block"><span id="m1" class="digit d2">0</span><span id="m2" class="digit d3">0</span></div>
       </div>
-      <div class="info" id="weather">Memuat cuaca…<div class="sub" id="place"></div></div>
+      <div class="meta">
+        <span class="day"  id="dayText">—</span>
+        <span class="sep">,</span>
+        <span class="date" id="dateText">—</span>
+        <span class="sep">•</span>
+        <span class="wx"   id="tempText">—</span>
+        <span class="sep">•</span>
+        <span class="wx"   id="condText">—</span>
+      </div>
     </div>
   </div>
 
-  <div class="controlbar">
-    <button class="btn" id="btnFS">⛶ Fullscreen</button>
-    <button class="btn" id="btnInstall" title="Tambahkan ke layar utama">➕ Install</button>
-    <button class="btn" id="btnSettings">⚙️ Pengaturan</button>
+  <!-- FAB depan: Pengaturan + Fullscreen (tanpa teks) -->
+  <div class="fabbar" aria-label="Kontrol tampilan">
+    <button class="fab" id="btnSettings" title="Pengaturan" aria-label="Pengaturan">
+      <!-- Ikon gear yang lebih familiar -->
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.5"/>
+        <path d="M19.4 15a1 1 0 0 0 .2-1.1l-1-1.7a7.8 7.8 0 0 0 0-2.4l1-1.7a1 1 0 0 0-.2-1.1l-1.3-1.3a1 1 0 0 0-1.1-.2l-1.7 1a7.8 7.8 0 0 0-2.4 0l-1.7-1a1 1 0 0 0-1.1.2L7 5a1 1 0 0 0-.2 1.1l1 1.7a7.8 7.8 0 0 0 0 2.4l-1 1.7a1 1 0 0 0 .2 1.1l1.3 1.3a1 1 0 0 0 1.1.2l1.7-1a7.8 7.8 0 0 0 2.4 0l1.7 1a1 1 0 0 0 1.1-.2Z"/>
+      </svg>
+    </button>
+    <button class="fab" id="btnFS" title="Layar Penuh" aria-label="Layar Penuh">
+      <svg id="fsIcon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <!-- ikon enter fullscreen -->
+        <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
+      </svg>
+    </button>
   </div>
 
-  <!-- Settings Modal -->
-  <div class="modal" id="modal">
+  <!-- Pengaturan -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="sheet">
-      <h2>Pengaturan Jam & Cuaca</h2>
+      <h2 id="settingsTitle">Pengaturan Jam & Cuaca</h2>
       <div class="grid">
         <div class="field">
           <label>Mode Tema</label>
@@ -96,17 +121,30 @@
         </div>
 
         <div class="field">
+          <label>Format Waktu</label>
+          <div class="row">
+            <label><input type="radio" name="tf" value="24" checked> 24 jam</label>
+            <label><input type="radio" name="tf" value="12"> 12 jam</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Ukuran Font (pixel)</label>
+          <div class="row">
+            <label>Jam: <input id="pxClock" type="number" min="80" max="800" step="1" placeholder="kosongkan = otomatis"> px</label>
+            <label>Hari: <input id="pxDay"   type="number" min="10" max="200" step="1"> px</label>
+            <label>Tanggal: <input id="pxDate" type="number" min="10" max="200" step="1"> px</label>
+            <label>Cuaca: <input id="pxWx"   type="number" min="10" max="200" step="1"> px</label>
+          </div>
+          <small>Jika dikosongkan, ukuran mengikuti skala responsif.</small>
+        </div>
+
+        <div class="field">
           <label>Font Google</label>
           <div class="row">
             <select id="fontPick">
-              <option>Inter</option>
-              <option>Poppins</option>
-              <option>Montserrat</option>
-              <option>Rubik</option>
-              <option>Nunito</option>
-              <option>Roboto</option>
-              <option>Work Sans</option>
-              <option>Mulish</option>
+              <option>Inter</option><option>Poppins</option><option>Montserrat</option><option>Rubik</option>
+              <option>Nunito</option><option>Roboto</option><option>Work Sans</option><option>Mulish</option>
             </select>
             <input id="fontCustom" type="text" placeholder="atau ketik nama font lain (Google Fonts)">
           </div>
@@ -116,35 +154,32 @@
           <label>Warna Digit & Teks</label>
           <div class="row">
             <span>0:</span><input type="color" id="cPeach" value="#eab8a7">
-            <span>9:</span><input type="color" id="cRose" value="#c78b8d">
+            <span>9:</span><input type="color" id="cRose"  value="#c78b8d">
             <span>4/1:</span><input type="color" id="cSlate" value="#475a6a">
             <span>Titik dua:</span><input type="color" id="cColon" value="#6b5b4d">
-            <span>Teks:</span><input type="color" id="cInfo" value="#9aa5b1">
+            <span>Teks:</span><input type="color" id="cInfo"  value="#9aa5b1">
           </div>
         </div>
 
         <div class="field">
-          <label>Cuaca — Sumber Lokasi</label>
+          <label>Cuaca — Sumber & Lokasi</label>
+          <div class="row">
+            <label>Sumber:
+              <select id="wprov">
+                <option value="open-meteo">Open-Meteo (tanpa API key)</option>
+                <option value="openweather">OpenWeather (butuh API key)</option>
+              </select>
+            </label>
+            <label>API key OpenWeather: <input id="owk" type="text" placeholder="isi jika memilih OpenWeather" style="min-width:240px"></label>
+          </div>
           <div class="row">
             <label><input type="radio" name="locmode" value="gps" checked> GPS</label>
             <label><input type="radio" name="locmode" value="manual"> Manual (koordinat)</label>
           </div>
-        </div>
-        <div class="row">
-          <div class="field" style="flex:1; min-width:160px">
-            <label>Latitude (manual)</label>
-            <input id="lat" type="number" step="0.000001" placeholder="-6.2">
-          </div>
-          <div class="field" style="flex:1; min-width:160px">
-            <label>Longitude (manual)</label>
-            <input id="lon" type="number" step="0.000001" placeholder="106.8">
-          </div>
-          <div class="field" style="flex:1; min-width:160px">
-            <label>Unit Suhu</label>
-            <select id="units">
-              <option value="metric">°C</option>
-              <option value="imperial">°F</option>
-            </select>
+          <div class="row">
+            <label>Lat: <input id="lat" type="number" step="0.000001" placeholder="-6.2"></label>
+            <label>Lon: <input id="lon" type="number" step="0.000001" placeholder="106.8"></label>
+            <label>Unit: <select id="units"><option value="metric">°C</option><option value="imperial">°F</option></select></label>
           </div>
         </div>
       </div>
@@ -157,126 +192,235 @@
 
   <script>
   (function(){
-    // ---------- STATE & PERSIST ----------
+    // STATE
     var state = {
-      theme: 'dark',
-      units: 'metric',
-      font: 'Inter',
-      colors: { peach:'#eab8a7', rose:'#c78b8d', slate:'#475a6a', colon:'#6b5b4d', info:'#9aa5b1' },
-      locmode: 'gps',
-      lat: null, lon: null
+      theme:'dark', units:'metric', font:'Inter', timeFormat:'24',
+      colors:{peach:'#eab8a7',rose:'#c78b8d',slate:'#475a6a',colon:'#6b5b4d',info:'#9aa5b1'},
+      locmode:'gps', lat:null, lon:null,
+      px:{clock:null,day:null,date:null,wx:null},
+      provider:'open-meteo', owKey:''
     };
-    try{ var s = localStorage.getItem('cw2_settings'); if(s) state = Object.assign(state, JSON.parse(s)); }catch(e){}
-    function save(){ try{ localStorage.setItem('cw2_settings', JSON.stringify(state)); }catch(e){} }
+    // restore from device storage
+    try{ var s=localStorage.getItem('cw6_settings'); if(s) state=Object.assign(state, JSON.parse(s)); }catch(e){}
+    function save(){ try{ localStorage.setItem('cw6_settings', JSON.stringify(state)); }catch(e){} }
+    function $(q){ return document.querySelector(q); }
 
-    // ---------- THEME & FONT ----------
+    // THEME / FONT / COLORS / SIZE
     function applyTheme(){ document.body.setAttribute('data-theme', state.theme || 'dark'); }
     function loadGoogleFont(name){
-      if(!name) return;
-      var family = name.replace(/ /g,'+');
-      document.getElementById('gf-link').href = 'https://fonts.googleapis.com/css2?family='+encodeURIComponent(family)+':wght@400;700;900&display=swap';
+      if(!name) return; var family=name.replace(/ /g,'+');
+      $('#gf-link').href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(family)+':wght@400;700;900&display=swap';
       document.body.style.fontFamily = name + ', Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif';
     }
+    function setVar(name,val){ if(val==null || val===''){ document.documentElement.style.removeProperty(name); } else { document.documentElement.style.setProperty(name,val+''); } }
     function applyColors(){
-      document.documentElement.style.setProperty('--c-peach', state.colors.peach);
-      document.documentElement.style.setProperty('--c-rose',  state.colors.rose);
-      document.documentElement.style.setProperty('--c-slate', state.colors.slate);
-      document.documentElement.style.setProperty('--c-colon', state.colors.colon);
-      document.documentElement.style.setProperty('--info',    state.colors.info);
+      setVar('--c-peach',state.colors.peach); setVar('--c-rose',state.colors.rose);
+      setVar('--c-slate',state.colors.slate); setVar('--c-colon',state.colors.colon); setVar('--info',state.colors.info);
     }
-    applyTheme(); loadGoogleFont(state.font); applyColors();
+    function applySizes(){
+      setVar('--clock-size',  state.px.clock!=null? (state.px.clock+'px') : '');
+      setVar('--day-size',    state.px.day  !=null? (state.px.day  +'px') : '');
+      setVar('--date-size',   state.px.date !=null? (state.px.date +'px') : '');
+      setVar('--weather-size',state.px.wx   !=null? (state.px.wx   +'px') : '');
+    }
+    applyTheme(); loadGoogleFont(state.font); applyColors(); applySizes();
 
-    // ---------- CLOCK ----------
+    // CLOCK + DATE
     function pad(n){ return (n<10?'0':'')+n; }
-    function $(q){ return document.querySelector(q); }
-    function tick(){
-      var d=new Date(); var hh=pad(d.getHours()); var mm=pad(d.getMinutes());
-      $('#h1').textContent=hh[0]; $('#h2').textContent=hh[1]; $('#m1').textContent=mm[0]; $('#m2').textContent=mm[1];
+    function renderDate(){
+      var d=new Date(), locale='id-ID';
+      $('#dayText').textContent = new Intl.DateTimeFormat(locale,{weekday:'long'}).format(d);
+      $('#dateText').textContent= new Intl.DateTimeFormat(locale,{day:'numeric', month:'long', year:'numeric'}).format(d);
     }
-    tick(); setInterval(tick,1000);
+    function renderClock(){
+      var d=new Date(), h=d.getHours();
+      if(state.timeFormat==='12'){ h=h%12; if(h===0) h=12; }
+      var hh=pad(h), mm=pad(d.getMinutes());
+      $('#h1').textContent=hh[0]; $('#h2').textContent=hh[1]; $('#m1').textContent=mm[0]; $('#m2').textContent=mm[1];
+      renderDate();
+    }
+    renderClock(); setInterval(renderClock,1000);
 
-    // Anti burn-in wander
-    var floatEl = $('#float');
-    function wander(){ var x=(Math.random()*16-8), y=(Math.random()*14-7); floatEl.style.transform='translate(calc(-50% + '+x+'%), calc(-50% + '+y+'%))'; }
-    setInterval(wander, 20000); setTimeout(wander, 1200);
+    // Anti burn-in drift
+    var floatEl=$('#float'); function wander(){ var x=(Math.random()*16-8), y=(Math.random()*14-7);
+      floatEl.style.transform='translate(calc(-50% + '+x+'%), calc(-50% + '+y+'%))'; }
+    setInterval(wander,20000); setTimeout(wander,1200);
 
-    // ---------- WEATHER (Open-Meteo) ----------
-    var weatherEl=$('#weather'), placeEl=$('#place');
-    function getJSON(url, cb){ if(window.fetch){ fetch(url).then(r=>r.json()).then(j=>cb(null,j)).catch(e=>cb(e)); } else { var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){ if(x.readyState===4){ try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)} } }; x.send(); } }
-    function codeToText(code){ var m={0:'Cerah',1:'Sebagian berawan',2:'Berawan',3:'Mendung',45:'Berkabut',48:'Embun beku',51:'Gerimis ringan',53:'Gerimis',55:'Gerimis lebat',61:'Hujan ringan',63:'Hujan',65:'Hujan lebat',71:'Salju',80:'Hujan sesaat',95:'Badai Petir'}; return m[code]||'Cuaca'; }
-    function renderWeather(j,name){ try{ var temp=(j.current&&j.current.temperature_2m)|| (j.current_weather&&j.current_weather.temperature); var code=(j.current&&j.current.weather_code)|| (j.current_weather&&j.current_weather.weathercode); var unit=(state.units==='metric')?'°C':'°F'; weatherEl.firstChild.nodeValue=(Math.round(temp)+unit+' · '+codeToText(code)+' '); placeEl.textContent=name||''; }catch(e){ weatherEl.textContent='Gagal memuat cuaca'; } }
-    function byCoords(lat,lon){ var url='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code&timezone=auto'+(state.units==='imperial'?'&temperature_unit=fahrenheit':''); getJSON(url,function(err,j){ if(err){ weatherEl.textContent='Gagal memuat cuaca'; return;} getJSON('https://geocoding-api.open-meteo.com/v1/reverse?latitude='+lat+'&longitude='+lon+'&language=id', function(e2,g){ var nm=(g&&g.results&&g.results[0]&&(g.results[0].name+(g.results[0].country?(', '+g.results[0].country):'')))||''; renderWeather(j,nm); }); }); }
-    function loadWeather(){ if(state.locmode==='manual' && state.lat!=null && state.lon!=null){ byCoords(state.lat, state.lon); return; } if(!navigator.geolocation){ weatherEl.textContent='Geolokasi tidak tersedia. Atur koordinat di Pengaturan.'; return;} navigator.geolocation.getCurrentPosition(function(p){ byCoords(p.coords.latitude, p.coords.longitude); }, function(){ weatherEl.textContent='Izin lokasi ditolak. Atur koordinat manual di Pengaturan.'; }, {maximumAge:1800000, timeout:8000}); }
-    loadWeather(); setInterval(loadWeather, 10*60*1000);
+    // WEATHER
+    var tempEl=$('#tempText'), condEl=$('#condText');
+    function getJSON(url,cb){
+      if(window.fetch){ fetch(url).then(r=>r.json()).then(j=>cb(null,j)).catch(e=>cb(e)); }
+      else { var x=new XMLHttpRequest(); x.open('GET',url,true);
+        x.onreadystatechange=function(){ if(x.readyState===4){ try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)} } }; x.send(); }
+    }
+    function codeToText(code){
+      var m={0:'Cerah',1:'Sebagian berawan',2:'Berawan',3:'Mendung',45:'Berkabut',48:'Embun beku',
+             51:'Gerimis ringan',53:'Gerimis',55:'Gerimis lebat',61:'Hujan ringan',63:'Hujan',
+             65:'Hujan lebat',71:'Salju',80:'Hujan sesaat',95:'Badai Petir'};
+      return m[code]||'Cuaca';
+    }
+    function loadOW(lat,lon){
+      var url='https://api.openweathermap.org/data/2.5/weather?lat='+lat+'&lon='+lon+'&appid='
+              +encodeURIComponent(state.owKey)+'&units='+(state.units==='imperial'?'imperial':'metric')+'&lang=id';
+      getJSON(url,function(err,j){
+        if(err||!j||!j.main){ tempEl.textContent='—'; condEl.textContent='Gagal memuat'; return; }
+        tempEl.textContent=Math.round(j.main.temp)+(state.units==='metric'?'°C':'°F');
+        condEl.textContent=(j.weather&&j.weather[0]&&j.weather[0].description)||'Cuaca';
+      });
+    }
+    function loadOM(lat,lon){
+      var url='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
+              '&current=temperature_2m,weather_code&timezone=auto'+(state.units==='imperial'?'&temperature_unit=fahrenheit':'');
+      getJSON(url,function(err,j){
+        if(err||!j){ tempEl.textContent='—'; condEl.textContent='Gagal memuat'; return; }
+        var t=(j.current&&j.current.temperature_2m)||(j.current_weather&&j.current_weather.temperature);
+        var code=(j.current&&j.current.weather_code)||(j.current_weather&&j.current_weather.weathercode);
+        tempEl.textContent=Math.round(t)+(state.units==='metric'?'°C':'°F');
+        condEl.textContent=codeToText(code);
+      });
+    }
+    function byCoords(lat,lon){ if(state.provider==='openweather' && state.owKey){ loadOW(lat,lon); } else { loadOM(lat,lon); } }
+    function loadWeather(){
+      if(state.locmode==='manual' && state.lat!=null && state.lon!=null){ byCoords(state.lat,state.lon); return; }
+      if(!navigator.geolocation){ tempEl.textContent='—'; condEl.textContent='Set koordinat di Pengaturan'; return; }
+      navigator.geolocation.getCurrentPosition(
+        function(p){ byCoords(p.coords.latitude,p.coords.longitude); },
+        function(){ tempEl.textContent='—'; condEl.textContent='Izin lokasi ditolak'; },
+        {maximumAge:1800000, timeout:8000}
+      );
+    }
+    loadWeather(); setInterval(loadWeather,10*60*1000);
 
-    // ---------- FULLSCREEN ----------
-    function goFull(){ var el=document.documentElement; var r= el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen || el.mozRequestFullScreen; if(r) r.call(el); }
-    $('#btnFS').addEventListener('click', goFull);
+    // FRONT BUTTONS
+    function isFS(){ return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; }
+    function enterFS(){ var el=document.documentElement;
+      var r= el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen||el.mozRequestFullScreen;
+      if(r) r.call(el);
+    }
+    function exitFS(){ var x=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen||document.mozCancelFullScreen; if(x) x.call(document); }
+    function toggleFS(){ if(isFS()){ exitFS(); } else { enterFS(); } }
+    document.getElementById('btnFS').addEventListener('click', toggleFS);
+    document.addEventListener('fullscreenchange', syncFSIcon);
+    document.addEventListener('webkitfullscreenchange', syncFSIcon);
+    function syncFSIcon(){
+      var el=document.getElementById('fsIcon');
+      if(!el) return;
+      if(isFS()){
+        // icon exit fullscreen
+        el.innerHTML='<path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/>';
+      } else {
+        // icon enter fullscreen
+        el.innerHTML='<path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>';
+      }
+    }
 
-    // ---------- SETTINGS UI ----------
+    // SETTINGS
     function openModal(){ $('#modal').style.display='flex'; syncForm(); }
     function closeModal(){ $('#modal').style.display='none'; }
-    $('#btnSettings').addEventListener('click', openModal); $('#btnClose').addEventListener('click', closeModal);
+    document.getElementById('btnSettings').addEventListener('click', openModal);
+    document.getElementById('btnClose').addEventListener('click', closeModal);
 
     function syncForm(){
-      // theme
-      var radios=document.querySelectorAll('input[name="theme"]'); [].forEach.call(radios, function(r){ r.checked = (r.value===state.theme); });
+      // theme & time
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="theme"]'), (r)=>{ r.checked=(r.value===state.theme); });
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="tf"]'),    (r)=>{ r.checked=(r.value===state.timeFormat); });
+      // sizes
+      $('#pxClock').value = state.px.clock==null? '' : state.px.clock;
+      $('#pxDay').value   = state.px.day==null  ? '' : state.px.day;
+      $('#pxDate').value  = state.px.date==null ? '' : state.px.date;
+      $('#pxWx').value    = state.px.wx==null   ? '' : state.px.wx;
       // font
       $('#fontPick').value = state.font || 'Inter'; $('#fontCustom').value='';
       // colors
-      $('#cPeach').value=state.colors.peach; $('#cRose').value=state.colors.rose; $('#cSlate').value=state.colors.slate; $('#cColon').value=state.colors.colon; $('#cInfo').value=state.colors.info;
-      // location
-      var lm=document.querySelectorAll('input[name="locmode"]'); [].forEach.call(lm, function(r){ r.checked=(r.value===state.locmode); });
-      $('#lat').value = state.lat!=null? state.lat: '';
-      $('#lon').value = state.lon!=null? state.lon: '';
-      $('#units').value = state.units;
+      $('#cPeach').value=state.colors.peach; $('#cRose').value=state.colors.rose;
+      $('#cSlate').value=state.colors.slate; $('#cColon').value=state.colors.colon; $('#cInfo').value=state.colors.info;
+      // weather
+      $('#wprov').value = state.provider; $('#owk').value = state.owKey||'';
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="locmode"]'), (r)=>{ r.checked=(r.value===state.locmode); });
+      $('#lat').value = state.lat!=null? state.lat: ''; $('#lon').value = state.lon!=null? state.lon: ''; $('#units').value = state.units;
     }
 
     function normalizeFontName(name){ return (name||'').trim().replace(/\s+/g,' '); }
+    document.getElementById('btnSave').addEventListener('click', function(){
+      state.theme = document.querySelector('input[name="theme"]:checked').value; applyTheme();
+      state.timeFormat = document.querySelector('input[name="tf"]:checked').value;
 
-    $('#btnSave').addEventListener('click', function(){
-      // theme
-      var th = document.querySelector('input[name="theme"]:checked').value; state.theme=th; applyTheme();
-      // font (custom overrides picker if provided)
-      var fcustom=normalizeFontName($('#fontCustom').value); var fname = fcustom || $('#fontPick').value; state.font=fname; loadGoogleFont(fname);
+      // sizes
+      var vC=parseInt($('#pxClock').value,10), vD=parseInt($('#pxDay').value,10),
+          vDt=parseInt($('#pxDate').value,10), vW=parseInt($('#pxWx').value,10);
+      state.px.clock = isNaN(vC)? null : vC;
+      state.px.day   = isNaN(vD)? null : vD;
+      state.px.date  = isNaN(vDt)? null : vDt;
+      state.px.wx    = isNaN(vW)? null : vW;
+      applySizes();
+
+      // font
+      var fcustom=normalizeFontName($('#fontCustom').value);
+      var fname = fcustom || $('#fontPick').value; state.font=fname; loadGoogleFont(fname);
+
       // colors
-      state.colors.peach=$('#cPeach').value; state.colors.rose=$('#cRose').value; state.colors.slate=$('#cSlate').value; state.colors.colon=$('#cColon').value; state.colors.info=$('#cInfo').value; applyColors();
-      // location & units
-      state.locmode = document.querySelector('input[name="locmode"]:checked').value; var latVal=$('#lat').value; var lonVal=$('#lon').value; state.lat = latVal===''? null : parseFloat(latVal); state.lon = lonVal===''? null : parseFloat(lonVal); state.units=$('#units').value;
+      state.colors.peach=$('#cPeach').value; state.colors.rose=$('#cRose').value;
+      state.colors.slate=$('#cSlate').value; state.colors.colon=$('#cColon').value; state.colors.info=$('#cInfo').value;
+      applyColors();
+
+      // weather
+      state.provider = $('#wprov').value; state.owKey = $('#owk').value.trim();
+      state.locmode = document.querySelector('input[name="locmode"]:checked').value;
+      var latVal=$('#lat').value; var lonVal=$('#lon').value;
+      state.lat = latVal===''? null : parseFloat(latVal);
+      state.lon = lonVal===''? null : parseFloat(lonVal);
+      state.units=$('#units').value;
+
       save(); loadWeather(); closeModal();
+      // perbarui ikon PWA agar konsisten (tetap skema terang)
+      attachManifest(true);
     });
 
-    // ---------- PWA (Installable) ----------
-    // Create icons on the fly (PNG data URLs) so this works as a single file
-    function makeIcon(size){ var c=document.createElement('canvas'); c.width=c.height=size; var g=c.getContext('2d'); g.fillStyle=(state.theme==='light')?'#111':'#000'; g.fillRect(0,0,size,size); g.fillStyle=(state.theme==='light')?'#0f172a':'#e5e7eb'; g.font=Math.floor(size*0.58)+'px 900 Inter'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('09', size*0.48, size*0.50); return c.toDataURL('image/png'); }
-
-    function attachManifest(){
-      var manifest = {
-        name: 'Jam & Cuaca', short_name: 'JamCuaca',
-        start_url: '.', display: 'standalone', background_color: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#000000', theme_color: (state.theme==='light')?'#fafafa':'#000000',
-        icons: [192,256,384,512].map(function(s){ return {src: makeIcon(s), sizes: s+'x'+s, type:'image/png'}; })
-      };
-      var blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement('link'); link.rel='manifest'; link.href=url; document.head.appendChild(link);
+    // PWA: manifest + SW + ikon
+    function drawClockIcon(ctx,size){
+      // latar terang permanen agar "skema warna terang" untuk PWA
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0,0,size,size);
+      // ring/tepi halus
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = size*0.04; ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, size-ctx.lineWidth, size-ctx.lineWidth);
+      // digit gelap
+      ctx.fillStyle = '#0f172a';
+      ctx.font = Math.floor(size*0.48)+'px 900 Inter';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      // tampilkan 12:00 sebagai ikon jam digital
+      ctx.fillText('12', size*0.44, size*0.47);
+      // titik dua
+      var r=size*0.055; ctx.beginPath(); ctx.arc(size*0.62, size*0.39, r, 0, 2*Math.PI); ctx.arc(size*0.62, size*0.59, r, 0, 2*Math.PI); ctx.fill();
+      // menit "00"
+      ctx.fillText('00', size*0.80, size*0.47);
+    }
+    function makeIcon(size){
+      var c=document.createElement('canvas'); c.width=c.height=size; var g=c.getContext('2d');
+      drawClockIcon(g,size);
+      return c.toDataURL('image/png');
+    }
+    function attachManifest(force){
+      // Buat manifest dengan ikon skema terang (maskable + any)
+      var manifest={ name:'Jam & Cuaca', short_name:'JamCuaca', start_url:'.', display:'standalone',
+        background_color:'#f8fafc', theme_color:'#f8fafc',
+        icons:[192,256,384,512].map((s)=>({src:makeIcon(s),sizes:s+'x'+s,type:'image/png',purpose:'any maskable'})) };
+      var blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var old=document.querySelector('link[rel="manifest"]');
+      if(old){ if(force) old.remove(); else return; }
+      var link=document.createElement('link'); link.rel='manifest'; link.href=url; document.head.appendChild(link);
     }
     attachManifest();
 
-    // Minimal service worker for offline cache of this page
     function registerSW(){
       if(!('serviceWorker' in navigator)) return;
-      var code = `self.addEventListener('install',e=>{e.waitUntil(caches.open('cw2-v1').then(c=>c.addAll(['./'])))});
-self.addEventListener('fetch',e=>{ e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request))); });`;
+      var code='self.addEventListener("install",e=>{e.waitUntil(caches.open("cw6-v1").then(c=>c.addAll(["./"])))});'+
+               'self.addEventListener("fetch",e=>{e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request)));});';
       var blob=new Blob([code],{type:'text/javascript'}); var url=URL.createObjectURL(blob);
       navigator.serviceWorker.register(url).catch(function(){});
     }
     registerSW();
-
-    // Install prompt handling
-    var deferredPrompt=null; var installBtn=$('#btnInstall'); installBtn.style.display='none';
-    window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; installBtn.style.display=''; });
-    installBtn.addEventListener('click', function(){ if(!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.finally(function(){ deferredPrompt=null; installBtn.style.display='none'; }); });
-
   })();
   </script>
 </body>
