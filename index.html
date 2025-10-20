@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Jam & Cuaca — PWA Anti Burn‑in</title>
+  <link id="gf-link" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap">
+  <style>
+    :root{
+      /* Themes */
+      --bg-dark:#000000; --fg-dark:#cbd5e1;
+      --bg-light:#fafafa; --fg-light:#0f172a;
+      /* Colors */
+      --c-peach:#eab8a7; --c-rose:#c78b8d; --c-slate:#475a6a; --c-colon:#6b5b4d; --info:#9aa5b1;
+      --radius:22px;
+      /* Sizes (user can override in Pengaturan by setting px values) */
+      --clock-size: min(28vw, 34vh); /* fallback responsive */
+      --meta-size: min(6vw, 4.6vh);
+      --sub-size:  min(4vw, 2.8vh);
+    }
+
+    [data-theme="dark"]{ --bg:var(--bg-dark); --fg:var(--fg-dark); }
+    [data-theme="light"]{ --bg:var(--bg-light); --fg:var(--fg-light); }
+
+    html,body{height:100%;}
+    body{ margin:0; background:var(--bg); color:var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif; overflow:hidden; }
+
+    .stage{position:relative; width:100%; height:100%;}
+    .floating{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); will-change:transform;}
+
+    /* Clock visuals */
+    .clock{display:flex; align-items:center; gap:min(2vw,18px);}    
+    .block{position:relative; line-height:0.9;}
+    .digit{ font-weight:900; font-size: var(--clock-px, var(--clock-size)); letter-spacing:-0.04em; opacity:0.95; animation: breathe 8s ease-in-out infinite; }
+    .d0{color:var(--c-peach)} .d1{color:var(--c-rose)} .d2,.d3{color:var(--c-slate)}
+
+    .colon-wrap{position:relative; width:min(8vw,9vh);} 
+    .dot{position:absolute; left:50%; transform:translateX(-50%); width:min(4.8vw,5.6vh); height:min(4.8vw,5.6vh); border-radius:50%; background:var(--c-colon); opacity:0.72; mix-blend-mode:multiply;}
+    .dot.top{top:12%;} .dot.bot{bottom:10%;}
+
+    .info{ margin-top:min(2vh,20px); text-align:center; font-size: var(--meta-px, var(--meta-size)); opacity:0.95; }
+    .sub{ font-size: var(--sub-px, var(--sub-size)); opacity:0.75; }
+
+    /* Single subtle settings button */
+    .settings-fab{ position:fixed; right:10px; bottom:10px; width:42px; height:42px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); color:var(--fg); border:1px solid rgba(255,255,255,0.14); box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity:0.55; }
+    .settings-fab:hover{opacity:0.8}
+    .settings-fab svg{ width:20px; height:20px; }
+
+    /* Settings modal */
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:30; }
+    .sheet{ background:var(--bg); color:var(--fg); width:min(780px, 96vw); max-height:90vh; overflow:auto; border-radius:var(--radius); border:1px solid rgba(255,255,255,0.14); padding:18px; }
+    .sheet h2{ margin:0 0 12px 0; font-size:18px; }
+    .grid{ display:grid; grid-template-columns: 1fr; gap:12px; }
+    .field{ display:flex; flex-direction:column; gap:6px; }
+    .field label{ font-size:13px; opacity:0.75; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .field input[type="text"], .field select, .field input[type="number"], .field input[type="range"]{ padding:10px; background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,0.2); border-radius:10px; }
+    .field input[type="color"]{ width:48px; height:36px; border-radius:8px; border:1px solid #555; background:none; }
+    .btn{ background:rgba(255,255,255,0.06); color:var(--fg); border:1px solid rgba(255,255,255,0.18); padding:10px 14px; border-radius:999px; font-size:14px; }
+    .actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+
+    @keyframes breathe{ 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.06)} }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="stage" id="stage">
+    <div class="floating" id="float">
+      <div class="clock" aria-label="Jam saat ini">
+        <div class="block"><span id="h1" class="digit d0">0</span><span id="h2" class="digit d1">0</span></div>
+        <div class="colon-wrap" aria-hidden="true"><span class="dot top"></span><span class="dot bot"></span></div>
+        <div class="block"><span id="m1" class="digit d2">0</span><span id="m2" class="digit d3">0</span></div>
+      </div>
+      <div class="info" id="weather">Memuat cuaca…<div class="sub" id="place"></div></div>
+    </div>
+  </div>
+
+  <!-- Single subtle settings icon -->
+  <button class="settings-fab" id="btnSettings" title="Pengaturan" aria-label="Pengaturan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1 1 0 0 0 .2-1.1l-1-1.7a7.8 7.8 0 0 0 0-2.4l1-1.7a1 1 0 0 0-.2-1.1l-1.3-1.3a1 1 0 0 0-1.1-.2l-1.7 1a7.8 7.8 0 0 0-2.4 0l-1.7-1a1 1 0 0 0-1.1.2L7 5a1 1 0 0 0-.2 1.1l1 1.7a7.8 7.8 0 0 0 0 2.4l-1 1.7a1 1 0 0 0 .2 1.1l1.3 1.3a1 1 0 0 0 1.1.2l1.7-1a7.8 7.8 0 0 0 2.4 0l1.7 1a1 1 0 0 0 1.1-.2Z"/></svg>
+  </button>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="modal">
+    <div class="sheet">
+      <h2>Pengaturan Jam & Cuaca</h2>
+      <div class="grid">
+        <div class="field">
+          <label>Mode Tema</label>
+          <div class="row">
+            <label><input type="radio" name="theme" value="dark"> Gelap</label>
+            <label><input type="radio" name="theme" value="light"> Terang</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Format Waktu</label>
+          <div class="row">
+            <label><input type="radio" name="tf" value="24" checked> 24 jam</label>
+            <label><input type="radio" name="tf" value="12"> 12 jam</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Ukuran Tampilan (pixel)</label>
+          <div class="row">
+            <label>Jam: <input id="pxClock" type="number" min="80" max="800" step="1" placeholder="kosongkan utk otomatis"> px</label>
+            <label>Cuaca: <input id="pxMeta" type="number" min="10" max="200" step="1" placeholder=""> px</label>
+            <label>Tanggal: <input id="pxSub" type="number" min="10" max="200" step="1" placeholder=""> px</label>
+          </div>
+          <small>Jika dikosongkan, ukuran mengikuti skala otomatis yang responsif.</small>
+        </div>
+
+        <div class="field">
+          <label>Font Google</label>
+          <div class="row">
+            <select id="fontPick">
+              <option>Inter</option><option>Poppins</option><option>Montserrat</option><option>Rubik</option><option>Nunito</option><option>Roboto</option><option>Work Sans</option><option>Mulish</option>
+            </select>
+            <input id="fontCustom" type="text" placeholder="atau ketik nama lain (Google Fonts)">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Warna Digit & Teks</label>
+          <div class="row">
+            <span>0:</span><input type="color" id="cPeach" value="#eab8a7">
+            <span>9:</span><input type="color" id="cRose" value="#c78b8d">
+            <span>4/1:</span><input type="color" id="cSlate" value="#475a6a">
+            <span>Titik dua:</span><input type="color" id="cColon" value="#6b5b4d">
+            <span>Teks:</span><input type="color" id="cInfo" value="#9aa5b1">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Cuaca — Sumber & Lokasi</label>
+          <div class="row" style="gap:14px">
+            <label>Sumber: 
+              <select id="wprov">
+                <option value="open-meteo">Open‑Meteo (tanpa API key)</option>
+                <option value="openweather">OpenWeather (butuh API key)</option>
+              </select>
+            </label>
+            <label>API key OpenWeather: <input id="owk" type="text" placeholder="isi jika memilih OpenWeather" style="min-width:260px"></label>
+          </div>
+          <div class="row">
+            <label><input type="radio" name="locmode" value="gps" checked> GPS</label>
+            <label><input type="radio" name="locmode" value="manual"> Manual (koordinat)</label>
+          </div>
+          <div class="row">
+            <label>Lat: <input id="lat" type="number" step="0.000001" placeholder="-6.2"></label>
+            <label>Lon: <input id="lon" type="number" step="0.000001" placeholder="106.8"></label>
+            <label>Unit: 
+              <select id="units"><option value="metric">°C</option><option value="imperial">°F</option></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnFullscreen">⛶ Fullscreen</button>
+          <span style="flex:1"></span>
+          <button class="btn" id="btnClose">Tutup</button>
+          <button class="btn" id="btnSave">Simpan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    // ---------- STATE & PERSIST ----------
+    var state = {
+      theme: 'dark', units: 'metric', font: 'Inter', timeFormat:'24',
+      colors: { peach:'#eab8a7', rose:'#c78b8d', slate:'#475a6a', colon:'#6b5b4d', info:'#9aa5b1' },
+      locmode: 'gps', lat: null, lon: null,
+      // pixel sizes (null = auto)
+      px: { clock: null, meta: null, sub: null },
+      // weather provider
+      provider: 'open-meteo', owKey: ''
+    };
+    try{ var s = localStorage.getItem('cw4_settings'); if(s) state = Object.assign(state, JSON.parse(s)); }catch(e){}
+    function save(){ try{ localStorage.setItem('cw4_settings', JSON.stringify(state)); }catch(e){} }
+
+    // ---------- THEME, FONT, COLORS, SIZES ----------
+    function setVar(name, val){ if(val==null || val=== ''){ document.documentElement.style.removeProperty(name); } else { document.documentElement.style.setProperty(name, val); } }
+    function applyTheme(){ document.body.setAttribute('data-theme', state.theme || 'dark'); }
+    function loadGoogleFont(name){ if(!name) return; var family = name.replace(/ /g,'+'); document.getElementById('gf-link').href = 'https://fonts.googleapis.com/css2?family='+encodeURIComponent(family)+':wght@400;700;900&display=swap'; document.body.style.fontFamily = name + ', Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif'; }
+    function applyColors(){ setVar('--c-peach', state.colors.peach); setVar('--c-rose', state.colors.rose); setVar('--c-slate', state.colors.slate); setVar('--c-colon', state.colors.colon); setVar('--info', state.colors.info); }
+    function applySizes(){ setVar('--clock-px', state.px.clock? (state.px.clock+'px') : null); setVar('--meta-px', state.px.meta? (state.px.meta+'px') : null); setVar('--sub-px', state.px.sub? (state.px.sub+'px') : null); }
+    applyTheme(); loadGoogleFont(state.font); applyColors(); applySizes();
+
+    // ---------- UTIL ----------
+    function pad(n){ return (n<10?'0':'')+n; }
+    function $(q){ return document.querySelector(q); }
+
+    // ---------- CLOCK ----------
+    function renderClock(){ var d=new Date(); var h=d.getHours(); if(state.timeFormat==='12'){ h = h%12; if(h===0) h=12; } var hh=pad(h), mm=pad(d.getMinutes()); $('#h1').textContent=hh[0]; $('#h2').textContent=hh[1]; $('#m1').textContent=mm[0]; $('#m2').textContent=mm[1]; }
+    renderClock(); setInterval(renderClock,1000);
+
+    // Anti burn-in wander
+    var floatEl=$('#float'); function wander(){ var x=(Math.random()*16-8), y=(Math.random()*14-7); floatEl.style.transform='translate(calc(-50% + '+x+'%), calc(-50% + '+y+'%))'; } setInterval(wander,20000); setTimeout(wander,1200);
+
+    // ---------- WEATHER (Open‑Meteo + OpenWeather) ----------
+    var weatherEl=$('#weather'), placeEl=$('#place');
+    function getJSON(url, cb){ if(window.fetch){ fetch(url).then(function(r){return r.json();}).then(function(j){cb(null,j);}).catch(function(e){cb(e);}); } else { var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){ if(x.readyState===4){ try{cb(null,JSON.parse(x.responseText))}catch(err){cb(err);} } }; x.send(); } }
+    function codeToText(code){ var m={0:'Cerah',1:'Sebagian berawan',2:'Berawan',3:'Mendung',45:'Berkabut',48:'Embun beku',51:'Gerimis ringan',53:'Gerimis',55:'Gerimis lebat',61:'Hujan ringan',63:'Hujan',65:'Hujan lebat',71:'Salju',80:'Hujan sesaat',95:'Badai Petir'}; return m[code]||'Cuaca'; }
+
+    function renderWM(j,name){ try{ var temp=(j.current&&j.current.temperature_2m)|| (j.current_weather&&j.current_weather.temperature); var code=(j.current&&j.current.weather_code)|| (j.current_weather&&j.current_weather.weathercode); var unit=(state.units==='metric')?'°C':'°F'; weatherEl.firstChild.nodeValue=(Math.round(temp)+unit+' · '+codeToText(code)+' '); placeEl.textContent=name||''; }catch(e){ weatherEl.textContent='Gagal memuat cuaca'; } }
+
+    function renderOW(j){ try{ var k=j && j.weather && j.weather[0]; var desc = k? (k.description||'Cuaca'): 'Cuaca'; var temp = j && j.main && j.main.temp; var unit=(state.units==='metric')?'°C':'°F'; weatherEl.firstChild.nodeValue=(Math.round(temp)+unit+' · '+desc+' '); placeEl.textContent=(j.name||''); }catch(e){ weatherEl.textContent='Gagal memuat cuaca'; } }
+
+    function byCoords(lat,lon){
+      if(state.provider==='openweather' && state.owKey){
+        var url='https://api.openweathermap.org/data/2.5/weather?lat='+lat+'&lon='+lon+'&appid='+encodeURIComponent(state.owKey)+'&units='+(state.units==='imperial'?'imperial':'metric')+'&lang=id';
+        getJSON(url, function(err,j){ if(err){ weatherEl.textContent='Gagal memuat cuaca'; return;} renderOW(j); });
+      } else {
+        var url2='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code&timezone=auto'+(state.units==='imperial'?'&temperature_unit=fahrenheit':'');
+        getJSON(url2, function(err2,j2){ if(err2){ weatherEl.textContent='Gagal memuat cuaca'; return;} getJSON('https://geocoding-api.open-meteo.com/v1/reverse?latitude='+lat+'&longitude='+lon+'&language=id', function(e2,g){ var nm=(g&&g.results&&g.results[0]&&(g.results[0].name+(g.results[0].country?(', '+g.results[0].country):'')))||''; renderWM(j2,nm); }); });
+      }
+    }
+
+    function loadWeather(){ if(state.locmode==='manual' && state.lat!=null && state.lon!=null){ byCoords(state.lat, state.lon); return; } if(!navigator.geolocation){ weatherEl.textContent='Geolokasi tidak tersedia. Atur koordinat di Pengaturan.'; return;} navigator.geolocation.getCurrentPosition(function(p){ byCoords(p.coords.latitude, p.coords.longitude); }, function(){ weatherEl.textContent='Izin lokasi ditolak. Atur koordinat manual di Pengaturan.'; }, { maximumAge: 30*60*1000, timeout: 8000 }); }
+    loadWeather(); setInterval(loadWeather, 10*60*1000);
+
+    // ---------- SETTINGS UI ----------
+    function openModal(){ $('#modal').style.display='flex'; syncForm(); }
+    function closeModal(){ $('#modal').style.display='none'; }
+    $('#btnSettings').addEventListener('click', openModal); $('#btnClose').addEventListener('click', closeModal);
+
+    function syncForm(){
+      // theme & time
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="theme"]'), function(r){ r.checked=(r.value===state.theme); });
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="tf"]'), function(r){ r.checked=(r.value===state.timeFormat); });
+      // sizes
+      $('#pxClock').value = state.px.clock==null? '' : state.px.clock;
+      $('#pxMeta').value  = state.px.meta==null? '' : state.px.meta;
+      $('#pxSub').value   = state.px.sub==null? '' : state.px.sub;
+      // font
+      $('#fontPick').value = state.font || 'Inter'; $('#fontCustom').value='';
+      // colors
+      $('#cPeach').value=state.colors.peach; $('#cRose').value=state.colors.rose; $('#cSlate').value=state.colors.slate; $('#cColon').value=state.colors.colon; $('#cInfo').value=state.colors.info;
+      // weather
+      $('#wprov').value = state.provider; $('#owk').value = state.owKey || '';
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="locmode"]'), function(r){ r.checked=(r.value===state.locmode); });
+      $('#lat').value = state.lat!=null? state.lat: ''; $('#lon').value = state.lon!=null? state.lon: ''; $('#units').value = state.units;
+    }
+
+    function normalizeFontName(name){ return (name||'').trim().replace(/\s+/g,' '); }
+
+    $('#btnSave').addEventListener('click', function(){
+      // theme & time
+      state.theme = document.querySelector('input[name="theme"]:checked').value; applyTheme();
+      state.timeFormat = document.querySelector('input[name="tf"]:checked').value;
+      // sizes
+      var c=parseInt($('#pxClock').value,10); var m=parseInt($('#pxMeta').value,10); var s=parseInt($('#pxSub').value,10);
+      state.px.clock = isNaN(c)? null : c; state.px.meta = isNaN(m)? null : m; state.px.sub = isNaN(s)? null : s; applySizes();
+      // font
+      var fcustom=normalizeFontName($('#fontCustom').value); var fname = fcustom || $('#fontPick').value; state.font=fname; loadGoogleFont(fname);
+      // colors
+      state.colors.peach=$('#cPeach').value; state.colors.rose=$('#cRose').value; state.colors.slate=$('#cSlate').value; state.colors.colon=$('#cColon').value; state.colors.info=$('#cInfo').value; applyColors();
+      // weather
+      state.provider = $('#wprov').value; state.owKey = $('#owk').value.trim();
+      state.locmode = document.querySelector('input[name="locmode"]:checked').value; var latVal=$('#lat').value; var lonVal=$('#lon').value; state.lat = latVal===''? null : parseFloat(latVal); state.lon = lonVal===''? null : parseFloat(lonVal); state.units=$('#units').value;
+      save(); loadWeather(); closeModal();
+    });
+
+    // Fullscreen inside settings
+    document.getElementById('btnFullscreen').addEventListener('click', function(){ var el=document.documentElement; var r= el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen||el.mozRequestFullScreen; if(r) r.call(el); });
+
+    // ---------- PWA (Installable + icons) ----------
+    function makeIcon(size){ var c=document.createElement('canvas'); c.width=c.height=size; var g=c.getContext('2d'); g.fillStyle=(state.theme==='light')?'#111':'#000'; g.fillRect(0,0,size,size); g.fillStyle=(state.theme==='light')?'#0f172a':'#e5e7eb'; g.font=Math.floor(size*0.58)+'px 900 Inter'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('09', size*0.48, size*0.50); return c.toDataURL('image/png'); }
+    function attachManifest(){ var manifest={ name:'Jam & Cuaca', short_name:'JamCuaca', start_url:'.', display:'standalone', background_color:getComputedStyle(document.body).getPropertyValue('--bg').trim()||'#000000', theme_color:(state.theme==='light')?'#fafafa':'#000000', icons:[192,256,384,512].map(function(s){return{src:makeIcon(s),sizes:s+'x'+s,type:'image/png'};}) }; var blob=new Blob([JSON.stringify(manifest)],{type:'application/json'}); var url=URL.createObjectURL(blob); var link=document.createElement('link'); link.rel='manifest'; link.href=url; document.head.appendChild(link);} attachManifest();
+    function registerSW(){ if(!('serviceWorker' in navigator)) return; var code='self.addEventListener(\'install\',e=>{e.waitUntil(caches.open(\'cw4-v1\').then(c=>c.addAll([\'./\'])))});self.addEventListener(\'fetch\',e=>{ e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request))); });'; var blob=new Blob([code],{type:'text/javascript'}); var url=URL.createObjectURL(blob); navigator.serviceWorker.register(url).catch(function(){}); } registerSW();
+
+  })();
+  </script>
+</body>
+</html>
