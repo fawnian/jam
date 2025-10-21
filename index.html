@@ -3,19 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Jam & Cuaca — PWA Anti Burn-in</title>
+  <title>Jam & Cuaca — PWA Anti Burn-in (v6+)</title>
   <link id="gf-link" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap">
   <style>
     :root{
       --bg-dark:#000000; --fg-dark:#cbd5e1;
       --bg-light:#fafafa; --fg-light:#0f172a;
+      --bg-custom:#0a0a0a; /* diubah via JS */
+      --fg-custom:#cbd5e1; /* diubah via JS sesuai kontras */
       --c-peach:#eab8a7; --c-rose:#c78b8d; --c-slate:#475a6a; --c-colon:#6b5b4d; --info:#9aa5b1;
       --radius:22px;
       /* Ukuran px (auto = responsif) */
       --clock-size:auto; --day-size:auto; --date-size:auto; --weather-size:auto;
+      /* Skema warna elemen (baru) */
+      --clock-mono: inherit; /* kalau di-set maka menimpa warna digit per-karakter */
+      --day-color:inherit; --date-color:inherit; --wx-color:inherit;
     }
     [data-theme="dark"]{ --bg:var(--bg-dark); --fg:var(--fg-dark); }
     [data-theme="light"]{ --bg:var(--bg-light); --fg:var(--fg-light); }
+    [data-theme="custom"]{ --bg:var(--bg-custom); --fg:var(--fg-custom); }
 
     html,body{height:100%;}
     body{ margin:0; background:var(--bg); color:var(--fg);
@@ -28,7 +34,7 @@
     /* Jam */
     .clock{display:flex; align-items:center; gap:min(2vw,18px);}  
     .block{position:relative; line-height:0.9;}
-    .digit{ font-weight:900; font-size: var(--clock-size); letter-spacing:-0.04em; opacity:0.95; animation: breathe 8s ease-in-out infinite; }
+    .digit{ font-weight:900; font-size: var(--clock-size); letter-spacing:-0.04em; opacity:0.95; animation: breathe 8s ease-in-out infinite; color: var(--clock-mono); }
     .d0{color:var(--c-peach)} .d1{color:var(--c-rose)} .d2,.d3{color:var(--c-slate)}
 
     .colon-wrap{position:relative; width:min(8vw,9vh);}  
@@ -38,9 +44,9 @@
 
     /* Baris meta di bawah jam: Hari, Tanggal, Suhu, Cuaca */
     .meta{ margin-top:min(2vh,20px); display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; }
-    .day{ font-size: var(--day-size); }
-    .date{ font-size: var(--date-size); }
-    .wx  { font-size: var(--weather-size); display:inline-flex; gap:6px; align-items:center; }
+    .day{ font-size: var(--day-size); color: var(--day-color); }
+    .date{ font-size: var(--date-size); color: var(--date-color); }
+    .wx  { font-size: var(--weather-size); display:inline-flex; gap:6px; align-items:center; color: var(--wx-color); }
     .sep { opacity:0.55; }
 
     /* Tombol mengambang depan */
@@ -48,13 +54,12 @@
     .fab{ width:42px; height:42px; border-radius:999px; display:flex; align-items:center; justify-content:center;
           background:rgba(255,255,255,0.04); color:var(--fg); border:1px solid rgba(255,255,255,0.14);
           box-shadow: 0 4px 16px rgba(0,0,0,0.25); cursor:pointer; }
-    /* Ikon pengaturan & fullscreen lebih halus tanpa teks */
     #btnSettings, #btnFS{ opacity:0.45; }
     #btnSettings:hover, #btnFS:hover{ opacity:0.75; }
 
     /* Modal Pengaturan */
     .modal{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:30; }
-    .sheet{ background:var(--bg); color:var(--fg); width:min(780px, 96vw); max-height:90vh; overflow:auto;
+    .sheet{ background:var(--bg); color:var(--fg); width:min(820px, 96vw); max-height:90vh; overflow:auto;
             border-radius:var(--radius); border:1px solid rgba(255,255,255,0.14); padding:18px; }
     .sheet h2{ margin:0 0 12px 0; font-size:18px; }
     .grid{ display:grid; grid-template-columns: 1fr; gap:12px; }
@@ -92,19 +97,8 @@
 
   <!-- FAB depan: Pengaturan + Fullscreen (tanpa teks) -->
   <div class="fabbar" aria-label="Kontrol tampilan">
-    <button class="fab" id="btnSettings" title="Pengaturan" aria-label="Pengaturan">
-      <!-- Ikon gear yang lebih familiar 
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="3.5"/>
-        <path d="M19.4 15a1 1 0 0 0 .2-1.1l-1-1.7a7.8 7.8 0 0 0 0-2.4l1-1.7a1 1 0 0 0-.2-1.1l-1.3-1.3a1 1 0 0 0-1.1-.2l-1.7 1a7.8 7.8 0 0 0-2.4 0l-1.7-1a1 1 0 0 0-1.1.2L7 5a1 1 0 0 0-.2 1.1l1 1.7a7.8 7.8 0 0 0 0 2.4l-1 1.7a1 1 0 0 0 .2 1.1l1.3 1.3a1 1 0 0 0 1.1.2l1.7-1a7.8 7.8 0 0 0 2.4 0l1.7 1a1 1 0 0 0 1.1-.2Z"/>
-      </svg>
-      -->
-      ⚙️
-    </button>
-    <button class="fab" id="btnFS" title="Layar Penuh" aria-label="Layar Penuh">
-      
-      ⛶
-    </button>
+    <button class="fab" id="btnSettings" title="Pengaturan" aria-label="Pengaturan">⚙️</button>
+    <button class="fab" id="btnFS" title="Layar Penuh" aria-label="Layar Penuh">⛶</button>
   </div>
 
   <!-- Pengaturan -->
@@ -117,7 +111,10 @@
           <div class="row">
             <label><input type="radio" name="theme" value="dark" checked> Gelap</label>
             <label><input type="radio" name="theme" value="light"> Terang</label>
+            <label><input type="radio" name="theme" value="custom"> Custom</label>
+            <label>Warna BG: <input type="color" id="cBg" value="#0a0a0a"></label>
           </div>
+          <small>Jika memilih "Custom", latar akan mengikuti warna yang dipilih. Teks otomatis menyesuaikan kontras.</small>
         </div>
 
         <div class="field">
@@ -151,13 +148,25 @@
         </div>
 
         <div class="field">
-          <label>Warna Digit & Teks</label>
+          <label>Skema Warna Elemen</label>
+          <div class="row">
+            <label><input type="checkbox" id="monoClock"> Gunakan satu warna untuk angka jam</label>
+            <span>Jam: </span><input type="color" id="cClock" value="#ffffff">
+            <span>Hari: </span><input type="color" id="cDay" value="#cbd5e1">
+            <span>Tanggal: </span><input type="color" id="cDate" value="#cbd5e1">
+            <span>Cuaca: </span><input type="color" id="cWx" value="#9aa5b1">
+          </div>
+          <small>Jika tidak dicentang, angka jam tetap memakai palet 0/9/4-1 yang ada.</small>
+        </div>
+
+        <div class="field">
+          <label>Palet Warna Digit & Teks (lama)</label>
           <div class="row">
             <span>0:</span><input type="color" id="cPeach" value="#eab8a7">
             <span>9:</span><input type="color" id="cRose"  value="#c78b8d">
             <span>4/1:</span><input type="color" id="cSlate" value="#475a6a">
             <span>Titik dua:</span><input type="color" id="cColon" value="#6b5b4d">
-            <span>Teks:</span><input type="color" id="cInfo"  value="#9aa5b1">
+            <span>Info:</span><input type="color" id="cInfo"  value="#9aa5b1">
           </div>
         </div>
 
@@ -174,7 +183,15 @@
           </div>
           <div class="row">
             <label><input type="radio" name="locmode" value="gps" checked> GPS</label>
+            <label><input type="radio" name="locmode" value="preset"> Preset</label>
             <label><input type="radio" name="locmode" value="manual"> Manual (koordinat)</label>
+            <label>Preset lokasi:
+              <select id="presetPick" disabled>
+                <option value="bidakara">Bidakara (−6.241484, 106.841495)</option>
+                <option value="azalea">Azalea (−6.303805, 106.958058)</option>
+                <option value="florida">Florida (−6.363288, 106.962411)</option>
+              </select>
+            </label>
           </div>
           <div class="row">
             <label>Lat: <input id="lat" type="number" step="0.000001" placeholder="-6.2"></label>
@@ -196,26 +213,52 @@
     var state = {
       theme:'dark', units:'metric', font:'Inter', timeFormat:'24',
       colors:{peach:'#eab8a7',rose:'#c78b8d',slate:'#475a6a',colon:'#6b5b4d',info:'#9aa5b1'},
-      locmode:'gps', lat:null, lon:null,
+      scheme:{ monoClock:false, clock:'#ffffff', day:'#cbd5e1', date:'#cbd5e1', wx:'#9aa5b1' },
+      bgCustom:'#0a0a0a',
+      locmode:'gps', lat:null, lon:null, preset:'bidakara',
       px:{clock:null,day:null,date:null,wx:null},
       provider:'open-meteo', owKey:''
     };
+
     // restore from device storage
     try{ var s=localStorage.getItem('cw6_settings'); if(s) state=Object.assign(state, JSON.parse(s)); }catch(e){}
     function save(){ try{ localStorage.setItem('cw6_settings', JSON.stringify(state)); }catch(e){} }
     function $(q){ return document.querySelector(q); }
 
     // THEME / FONT / COLORS / SIZE
-    function applyTheme(){ document.body.setAttribute('data-theme', state.theme || 'dark'); }
+    function luminance(hex){
+      var m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);
+      if(!m) return 0.5; var r=parseInt(m[1],16)/255, g=parseInt(m[2],16)/255, b=parseInt(m[3],16)/255;
+      var a=[r,g,b].map(v=> v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4));
+      return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];
+    }
+    function applyTheme(){
+      if(state.theme==='custom'){
+        document.documentElement.style.setProperty('--bg-custom', state.bgCustom);
+        // auto kontras sederhana
+        var lum = luminance(state.bgCustom);
+        var fg = lum > 0.5 ? '#0f172a' : '#cbd5e1';
+        document.documentElement.style.setProperty('--fg-custom', fg);
+      }
+      document.body.setAttribute('data-theme', state.theme || 'dark');
+    }
     function loadGoogleFont(name){
       if(!name) return; var family=name.replace(/ /g,'+');
       $('#gf-link').href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(family)+':wght@400;700;900&display=swap';
       document.body.style.fontFamily = name + ', Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", sans-serif';
     }
     function setVar(name,val){ if(val==null || val===''){ document.documentElement.style.removeProperty(name); } else { document.documentElement.style.setProperty(name,val+''); } }
-    function applyColors(){
+    function applyPalette(){
       setVar('--c-peach',state.colors.peach); setVar('--c-rose',state.colors.rose);
       setVar('--c-slate',state.colors.slate); setVar('--c-colon',state.colors.colon); setVar('--info',state.colors.info);
+    }
+    function applyScheme(){
+      // warna elemen baru
+      setVar('--day-color', state.scheme.day);
+      setVar('--date-color', state.scheme.date);
+      setVar('--wx-color', state.scheme.wx);
+      if(state.scheme.monoClock){ setVar('--clock-mono', state.scheme.clock); }
+      else { setVar('--clock-mono', 'inherit'); }
     }
     function applySizes(){
       setVar('--clock-size',  state.px.clock!=null? (state.px.clock+'px') : '');
@@ -223,7 +266,7 @@
       setVar('--date-size',   state.px.date !=null? (state.px.date +'px') : '');
       setVar('--weather-size',state.px.wx   !=null? (state.px.wx   +'px') : '');
     }
-    applyTheme(); loadGoogleFont(state.font); applyColors(); applySizes();
+    applyTheme(); loadGoogleFont(state.font); applyPalette(); applyScheme(); applySizes();
 
     // CLOCK + DATE
     function pad(n){ return (n<10?'0':'')+n; }
@@ -280,15 +323,26 @@
       });
     }
     function byCoords(lat,lon){ if(state.provider==='openweather' && state.owKey){ loadOW(lat,lon); } else { loadOM(lat,lon); } }
-    function loadWeather(){
-      if(state.locmode==='manual' && state.lat!=null && state.lon!=null){ byCoords(state.lat,state.lon); return; }
+
+    var PRESETS = {
+      bidakara:{lat:-6.241484, lon:106.841495},
+      azalea:{lat:-6.303805, lon:106.958058},
+      florida:{lat:-6.363288, lon:106.962411}
+    };
+
+    function effectiveCoords(cb){
+      if(state.locmode==='preset'){
+        var p = PRESETS[state.preset] || PRESETS.bidakara; return cb(p.lat, p.lon);
+      }
+      if(state.locmode==='manual' && state.lat!=null && state.lon!=null){ return cb(state.lat,state.lon); }
       if(!navigator.geolocation){ tempEl.textContent='—'; condEl.textContent='Set koordinat di Pengaturan'; return; }
       navigator.geolocation.getCurrentPosition(
-        function(p){ byCoords(p.coords.latitude,p.coords.longitude); },
+        function(p){ cb(p.coords.latitude,p.coords.longitude); },
         function(){ tempEl.textContent='—'; condEl.textContent='Izin lokasi ditolak'; },
         {maximumAge:1800000, timeout:8000}
       );
     }
+    function loadWeather(){ effectiveCoords(function(la,lo){ byCoords(la,lo); }); }
     loadWeather(); setInterval(loadWeather,10*60*1000);
 
     // FRONT BUTTONS
@@ -300,21 +354,8 @@
     function exitFS(){ var x=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen||document.mozCancelFullScreen; if(x) x.call(document); }
     function toggleFS(){ if(isFS()){ exitFS(); } else { enterFS(); } }
     document.getElementById('btnFS').addEventListener('click', toggleFS);
-    document.addEventListener('fullscreenchange', syncFSIcon);
-    document.addEventListener('webkitfullscreenchange', syncFSIcon);
-    function syncFSIcon(){
-      var el=document.getElementById('fsIcon');
-      if(!el) return;
-      if(isFS()){
-        // icon exit fullscreen
-        el.innerHTML='<path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/>';
-      } else {
-        // icon enter fullscreen
-        el.innerHTML='<path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>';
-      }
-    }
 
-    // SETTINGS
+    // SETTINGS UI
     function openModal(){ $('#modal').style.display='flex'; syncForm(); }
     function closeModal(){ $('#modal').style.display='none'; }
     document.getElementById('btnSettings').addEventListener('click', openModal);
@@ -323,6 +364,7 @@
     function syncForm(){
       // theme & time
       Array.prototype.forEach.call(document.querySelectorAll('input[name="theme"]'), (r)=>{ r.checked=(r.value===state.theme); });
+      $('#cBg').value = state.bgCustom || '#0a0a0a';
       Array.prototype.forEach.call(document.querySelectorAll('input[name="tf"]'),    (r)=>{ r.checked=(r.value===state.timeFormat); });
       // sizes
       $('#pxClock').value = state.px.clock==null? '' : state.px.clock;
@@ -331,18 +373,35 @@
       $('#pxWx').value    = state.px.wx==null   ? '' : state.px.wx;
       // font
       $('#fontPick').value = state.font || 'Inter'; $('#fontCustom').value='';
-      // colors
+      // legacy palette
       $('#cPeach').value=state.colors.peach; $('#cRose').value=state.colors.rose;
       $('#cSlate').value=state.colors.slate; $('#cColon').value=state.colors.colon; $('#cInfo').value=state.colors.info;
+      // scheme
+      $('#monoClock').checked = !!state.scheme.monoClock;
+      $('#cClock').value = state.scheme.clock || '#ffffff';
+      $('#cDay').value   = state.scheme.day   || '#cbd5e1';
+      $('#cDate').value  = state.scheme.date  || '#cbd5e1';
+      $('#cWx').value    = state.scheme.wx    || '#9aa5b1';
       // weather
       $('#wprov').value = state.provider; $('#owk').value = state.owKey||'';
       Array.prototype.forEach.call(document.querySelectorAll('input[name="locmode"]'), (r)=>{ r.checked=(r.value===state.locmode); });
+      $('#presetPick').disabled = state.locmode!=='preset';
+      $('#presetPick').value = state.preset || 'bidakara';
       $('#lat').value = state.lat!=null? state.lat: ''; $('#lon').value = state.lon!=null? state.lon: ''; $('#units').value = state.units;
     }
 
-    function normalizeFontName(name){ return (name||'').trim().replace(/\s+/g,' '); }
+    // interaksi locmode <-> preset dropdown
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="locmode"]'), function(r){
+      r.addEventListener('change', function(){
+        var v = document.querySelector('input[name="locmode"]:checked').value;
+        $('#presetPick').disabled = (v!=='preset');
+      });
+    });
+
     document.getElementById('btnSave').addEventListener('click', function(){
-      state.theme = document.querySelector('input[name="theme"]:checked').value; applyTheme();
+      state.theme = document.querySelector('input[name="theme"]:checked').value; 
+      state.bgCustom = $('#cBg').value || state.bgCustom; 
+      applyTheme();
       state.timeFormat = document.querySelector('input[name="tf"]:checked').value;
 
       // sizes
@@ -355,44 +414,46 @@
       applySizes();
 
       // font
-      var fcustom=normalizeFontName($('#fontCustom').value);
+      var fcustom=(($('#fontCustom').value)||'').trim().replace(/\s+/g,' ');
       var fname = fcustom || $('#fontPick').value; state.font=fname; loadGoogleFont(fname);
 
-      // colors
+      // legacy palette
       state.colors.peach=$('#cPeach').value; state.colors.rose=$('#cRose').value;
       state.colors.slate=$('#cSlate').value; state.colors.colon=$('#cColon').value; state.colors.info=$('#cInfo').value;
-      applyColors();
+      applyPalette();
+
+      // scheme baru
+      state.scheme.monoClock = $('#monoClock').checked;
+      state.scheme.clock = $('#cClock').value;
+      state.scheme.day   = $('#cDay').value;
+      state.scheme.date  = $('#cDate').value;
+      state.scheme.wx    = $('#cWx').value;
+      applyScheme();
 
       // weather
       state.provider = $('#wprov').value; state.owKey = $('#owk').value.trim();
       state.locmode = document.querySelector('input[name="locmode"]:checked').value;
+      state.preset = $('#presetPick').value;
       var latVal=$('#lat').value; var lonVal=$('#lon').value;
       state.lat = latVal===''? null : parseFloat(latVal);
       state.lon = lonVal===''? null : parseFloat(lonVal);
       state.units=$('#units').value;
 
       save(); loadWeather(); closeModal();
-      // perbarui ikon PWA agar konsisten (tetap skema terang)
       attachManifest(true);
     });
 
-    // PWA: manifest + SW + ikon
+    // PWA: manifest + SW + ikon (tetap sama)
     function drawClockIcon(ctx,size){
-      // latar terang permanen agar "skema warna terang" untuk PWA
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0,0,size,size);
-      // ring/tepi halus
       ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = size*0.04; ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, size-ctx.lineWidth, size-ctx.lineWidth);
-      // digit gelap
       ctx.fillStyle = '#0f172a';
       ctx.font = Math.floor(size*0.48)+'px 900 Inter';
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      // tampilkan 12:00 sebagai ikon jam digital
       ctx.fillText('12', size*0.44, size*0.47);
-      // titik dua
       var r=size*0.055; ctx.beginPath(); ctx.arc(size*0.62, size*0.39, r, 0, 2*Math.PI); ctx.arc(size*0.62, size*0.59, r, 0, 2*Math.PI); ctx.fill();
-      // menit "00"
       ctx.fillText('00', size*0.80, size*0.47);
     }
     function makeIcon(size){
@@ -401,7 +462,6 @@
       return c.toDataURL('image/png');
     }
     function attachManifest(force){
-      // Buat manifest dengan ikon skema terang (maskable + any)
       var manifest={ name:'Jam & Cuaca', short_name:'JamCuaca', start_url:'.', display:'standalone',
         background_color:'#f8fafc', theme_color:'#f8fafc',
         icons:[192,256,384,512].map((s)=>({src:makeIcon(s),sizes:s+'x'+s,type:'image/png',purpose:'any maskable'})) };
